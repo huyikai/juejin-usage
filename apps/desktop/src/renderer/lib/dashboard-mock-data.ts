@@ -128,8 +128,6 @@ export interface DashboardMockData {
   dailyUsage: DashboardDailyUsageRow[];
   summary: DashboardUsageSummary;
   changes: DashboardMetricChanges;
-  /** Hidden when either comparison period has no usage data. */
-  metricTrends: DashboardMetricTrends;
   distributions: DashboardDistributions;
   toolModelUsage: DashboardToolUsageRow[];
   projectModelUsage: DashboardProjectUsageRow[];
@@ -147,12 +145,6 @@ export const emptyDashboardData: DashboardMockData = {
   dailyUsage: [],
   summary: { inputTokens: 0, outputTokens: 0, totalTokens: 0, totalCostUsd: 0, totalDurationMinutes: 0 },
   changes: { inputTokens: 0, outputTokens: 0, totalTokens: 0, totalCostUsd: 0 },
-  metricTrends: {
-    inputTokens: null,
-    outputTokens: null,
-    totalTokens: null,
-    totalCostUsd: null,
-  },
   distributions: { terminals: [], tools: [], models: [], projects: [] },
   toolModelUsage: [],
   projectModelUsage: [],

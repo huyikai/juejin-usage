@@ -154,6 +154,18 @@ export interface DashboardMetricChanges {
   totalCostUsd: number;
 }
 
+export interface DashboardMetricTrend {
+  changePct: number;
+  changeValue: number;
+}
+
+export interface DashboardMetricTrends {
+  inputTokens: DashboardMetricTrend | null;
+  outputTokens: DashboardMetricTrend | null;
+  totalTokens: DashboardMetricTrend | null;
+  totalCostUsd: DashboardMetricTrend | null;
+}
+
 export interface DashboardDistributionRow {
   id: string;
   label: string;

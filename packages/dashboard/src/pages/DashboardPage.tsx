@@ -27,9 +27,13 @@ import { DATA_SYNCED_EVENT } from '@/lib/shell-events';
 import { localDateNow } from '@/lib/stats-timezone';
 import { sourceLabel } from '@/lib/tokens';
 import {
+  buildVisibleMetricTrends,
   buildToolModelDistributions,
+  filterHeatmapDaysBySources,
+  filterModelRowsBySources,
   filterProjectRowsBySources,
   filterTrendRowsBySources,
+  summarizeTrendRows,
 } from '@/lib/usage-filter';
 
 const SHARE_RANGE_LABELS: Record<DashboardRange, string> = {
@@ -84,34 +88,6 @@ export function DashboardPage() {
     ? selectedTools.map(sourceLabel).join('、')
     : '全部工具';
   const showProjectDistribution = isCliBackend();
-  const metricTrends = useMemo(
-    () => ({
-      inputTokens: metricTrend(view.summary.inputTokens, view.changes.inputTokens),
-      outputTokens: metricTrend(view.summary.outputTokens, view.changes.outputTokens),
-      totalTokens: metricTrend(view.summary.totalTokens, view.changes.totalTokens),
-      totalCostUsd: metricTrend(
-        view.summary.totalCostUsd,
-        view.changes.totalCostUsd,
-      ),
-    }),
-    [view.changes, view.summary],
-  );
-
-  useEffect(() => {
-    if (loading || refreshing) return;
-    publishSnapshot({
-      rangeLabel: shareRangeLabel,
-      summary: view.summary,
-      toolLabel: shareToolLabel,
-    });
-  }, [
-    loading,
-    publishSnapshot,
-    refreshing,
-    shareRangeLabel,
-    shareToolLabel,
-    view.summary,
-  ]);
 
   useEffect(() => {
     const available = new Set(view.toolModelUsage.map((row) => row.source));
@@ -175,6 +151,86 @@ export function DashboardPage() {
     () => filterProjectRowsBySources(view.projectModelUsage, selectedTools),
     [selectedTools, view.projectModelUsage],
   );
+  const visibleSummary = useMemo(
+    () =>
+      summarizeTrendRows({
+        dailyRows: visibleTrendRows.dailyRows,
+        hourlyRows: visibleTrendRows.hourlyRows,
+        hourly: isHourly,
+      }),
+    [isHourly, visibleTrendRows],
+  );
+  const visibleMetricTrends = useMemo(
+    () =>
+      buildVisibleMetricTrends({
+        currentDailyRows: visibleTrendRows.dailyRows,
+        currentHourlyRows: visibleTrendRows.hourlyRows,
+        heatmapDailyRows: data.heatmapDailyUsage,
+        heatmapDays: data.heatmapDays,
+        hourlyApiRows: data.hourlyApiRows,
+        modelRows: data.modelRows,
+        toolRows: view.toolModelUsage,
+        selectedSources: selectedTools,
+        rangeDays: dayScoped ? 1 : rangeDays,
+        hourly: isHourly,
+        currentDate: selectedDate ?? undefined,
+      }),
+    [
+      data.heatmapDailyUsage,
+      data.heatmapDays,
+      data.hourlyApiRows,
+      data.modelRows,
+      dayScoped,
+      isHourly,
+      rangeDays,
+      selectedDate,
+      selectedTools,
+      view.toolModelUsage,
+      visibleTrendRows,
+    ],
+  );
+  const visibleOverviewDailyUsage = useMemo(
+    () =>
+      filterTrendRowsBySources({
+        dailyRows: data.dailyUsage,
+        hourlyRows: [],
+        hourlyApiRows: data.hourlyApiRows,
+        heatmapDays: data.heatmapDays,
+        modelRows: data.modelRows,
+        toolRows: view.toolModelUsage,
+        selectedSources: selectedTools,
+      }).dailyRows,
+    [data, selectedTools, view.toolModelUsage],
+  );
+  const visibleHeatmapDays = useMemo(
+    () =>
+      filterHeatmapDaysBySources(
+        data.heatmapDays,
+        selectedTools,
+        data.modelRows,
+      ),
+    [data.heatmapDays, data.modelRows, selectedTools],
+  );
+  const visibleModelRows = useMemo(
+    () => filterModelRowsBySources(data.modelRows, selectedTools),
+    [data.modelRows, selectedTools],
+  );
+
+  useEffect(() => {
+    if (loading || refreshing) return;
+    publishSnapshot({
+      rangeLabel: shareRangeLabel,
+      summary: visibleSummary,
+      toolLabel: shareToolLabel,
+    });
+  }, [
+    loading,
+    publishSnapshot,
+    refreshing,
+    shareRangeLabel,
+    shareToolLabel,
+    visibleSummary,
+  ]);
   const handleSelectDate = (date: string) => {
     setSelectedDate((current) => (current === date ? null : date));
   };
@@ -225,13 +281,13 @@ export function DashboardPage() {
         <div className="relative min-h-48">
           <DashboardRangeSyncOverlay visible={refreshing} />
           <DashboardOverviewCard
-            dailyUsage={data.dailyUsage}
-            heatmapDays={data.heatmapDays}
-            metricTrends={metricTrends}
-            modelRows={data.modelRows}
+            dailyUsage={visibleOverviewDailyUsage}
+            heatmapDays={visibleHeatmapDays}
+            metricTrends={visibleMetricTrends}
+            modelRows={visibleModelRows}
             onSelectDate={handleSelectDate}
             selectedDate={selectedDate}
-            summary={view.summary}
+            summary={visibleSummary}
           />
 
           <section
@@ -286,17 +342,4 @@ export function DashboardPage() {
 function formatFilterDayLabel(date: string): string {
   const [, month = '1', day = '1'] = date.slice(0, 10).split('-');
   return `${Number(month)}月${Number(day)}日`;
-}
-
-function metricTrend(current: number, changePct: number) {
-  if (!Number.isFinite(current) || !Number.isFinite(changePct) || current <= 0) {
-    return null;
-  }
-
-  const ratio = 1 + changePct / 100;
-  if (ratio <= 0) return null;
-  return {
-    changePct,
-    changeValue: current - current / ratio,
-  };
 }

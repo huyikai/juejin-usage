@@ -432,34 +432,17 @@ function buildProjectRowsFromDaily(
 
 function normalizeDailyRow(
   row: DailyUsageRow,
-  index: number,
+  _index?: number,
 ): DashboardDailyUsageRow {
-  const template =
-    dashboardMockData.dailyUsage[index % dashboardMockData.dailyUsage.length];
-  const inputRatio = safeRatio(
-    template.inputTokens,
-    template.totalTokens,
-    0.78,
-  );
-  const cacheRatio = safeRatio(
-    template.cachedInputTokens,
-    template.inputTokens,
-    0.2,
-  );
+  const inputRatio = 0.78;
+  const cacheRatio = 0.2;
   const inputTokens = Math.round(row.tokens * inputRatio);
   const outputTokens = Math.max(0, row.tokens - inputTokens);
   const cachedInputTokens = Math.min(
     inputTokens,
     Math.round(inputTokens * cacheRatio),
   );
-  const durationMinutes = Math.round(
-    row.tokens *
-      safeRatio(
-        dashboardMockData.summary.totalDurationMinutes,
-        dashboardMockData.summary.totalTokens,
-        0,
-      ),
-  );
+  const durationMinutes = 0;
 
   return {
     day: weekdayForDate(row.date),
@@ -479,7 +462,7 @@ function buildRecentSevenDays(
   rows: DashboardDailyUsageRow[],
 ): DashboardDailyUsageRow[] {
   const byDate = new Map(rows.map((row) => [row.date, row]));
-  const endDate = parseUtcDate(rows.at(-1)?.date ?? new Date().toISOString());
+  const endDate = parseUtcDate(rows.at(-1)?.date ?? localDateNow());
 
   return Array.from({ length: 7 }, (_, index) => {
     const date = new Date(endDate);
@@ -676,10 +659,6 @@ function allocateDecimal(total: number, weights: number[]): number[] {
   return allocateInteger(Math.round(total * 100), weights).map(
     (value) => value / 100,
   );
-}
-
-function safeRatio(part: number, total: number, fallback: number) {
-  return total > 0 ? part / total : fallback;
 }
 
 function weekdayForDate(value: string) {
